@@ -16,7 +16,8 @@ WASIMIL チームのプロジェクト管理を自動化する Claude Code Routi
 │   ├── 3-sprint-planning.md             # API trigger（手動）
 │   ├── 4-friday-capacity-warning.md     # 金曜 16:00
 │   ├── 5-estimate-accuracy-feedback.md  # 平日 18:00 / Hubstaff 活用
-│   └── 6-overrun-alert.md               # 平日 14:00 / Hubstaff 活用
+│   ├── 6-overrun-alert.md               # 平日 14:00 / Hubstaff 活用
+│   └── 7-morning-task-briefing.md       # 平日 08:00 / 本日のタスク Daily Plan
 └── docs/
     └── rollout-checklist.md        # 段階的ロールアウト＆実装チェックリスト
 ```
@@ -31,6 +32,7 @@ WASIMIL チームのプロジェクト管理を自動化する Claude Code Routi
 | 4. 金曜キャパシティ警告 | Friday 16:00 | Hiroko DM | 過負荷の事前検知 |
 | 5. 見積精度フィードバックループ | Weekdays 18:00 | ClickUp コメント + Hiroko DM | Routine 3 推定モデルの精度向上 |
 | 6. 進行中タスクの工数超過アラート | Weekdays 14:00 | 担当者 DM + Hiroko DM | スコープ崩壊の当日中検知 |
+| 7. 本日のタスクブリーフィング | Weekdays 08:00 | 各担当者へ Slack DM | 朝一の認知負荷低減、着手順の迷い解消 |
 
 すべての Routine は `claude-sonnet-4-5` で動作し、ClickUp + Slack コネクターを使用します。
 Routine 5・6 は Hubstaff → ClickUp 連携で同期される `time_spent` フィールドを活用します。
