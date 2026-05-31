@@ -1,6 +1,11 @@
-# VC月次報告 Notion自動投稿ルーティン（完成版 / Routine 貼り付け用）
+# VC月次報告 自動生成ルーティン（IRシステム投稿版 / Routine 貼り付け用）
 
-毎月 5 日 09:00 JST にリモートクラウド環境で自動実行される、AZOO（WASIMIL）VC 月次報告の Notion ページ生成 + Slack 通知ルーティン。
+毎月 5 日 09:00 JST にリモートクラウド環境で自動実行される、AZOO（WASIMIL）VC 月次報告の **IR財務ダッシュボードへの月報投稿** + Slack 通知ルーティン。
+
+> **2026-05 更新：Notion 廃止。** 月報は Notion ではなく IR システム（財務ダッシュボード）に投稿する。
+> システム側に「月報の一覧・閲覧・公開リンク共有」を実装済みのため、Notion は使用しない。
+> 投稿先: `POST https://wasi-financial-dashboard.vercel.app/api/ingest/monthly-report`
+> 投資家はシステムのポータル（ログイン）または公開リンク（`/r/:token`）で閲覧できる。
 
 **このリポジトリの位置づけ：** Routine のプロンプト本体をバージョン管理する場所。Claude Code の Routine 設定（`trig_01UA4wahnz5ZPY5jC9rNyHuu`）に貼り付ける本文は、下記「Routine プロンプト本体」セクション以下をそのままコピーする。
 
@@ -10,11 +15,13 @@ ClickUp プロダクト集計部分（STEP 5）は、`prompts/product-monthly-up
 
 ## Routine プロンプト本体（ここから下を Routine に貼り付ける）
 
-これはリモートクラウド環境で実行されます。ローカルスクリプト（`python3 gw.py` 等）は使えません。**Notion / Supabase / ClickUp / Slack / Google-Drive / Firecrawl MCP のみ**使用してください。
+これはリモートクラウド環境で実行されます。データ収集は **Supabase / ClickUp / Slack / Google-Drive / Firecrawl MCP** を使用し、月報の投稿は **IRシステムの取り込みAPIへの HTTP POST**（環境のネットワーク経由 / `curl` 等）で行ってください。**Notion は使用しません。**
 
 ### 前提情報
 
-- Notion VC Monthly Meeting database `data_source_id`: `deb5f01e-7d35-8285-8ca2-075d87700da9`
+- IR システム 月報取り込みエンドポイント: `POST https://wasi-financial-dashboard.vercel.app/api/ingest/monthly-report`
+  - 認証ヘッダー: `x-ingest-key: {{REPORT_INGEST_KEY}}`（実際のキーは Routine のシークレット設定に保持。リポジトリにコミットしないこと）
+  - `Content-Type: application/json`
 - 財務ダッシュボード URL: `https://wasi-financial-dashboard.vercel.app/embed/vc-report?key=azoo-vc-2026&y={YEAR}&m={MONTH}&lang=ja&theme=light`
 - Slack 通知先: `washimo.slack.com` チャンネル ID `C06U8SWQT0Q`
 - Sales Pipeline Supabase Project ID: `bnqejljedwkmlkykdhcr`
@@ -128,33 +135,48 @@ Google-Drive MCP で Sheets ID `1dZqJ1ijbbJxXwk9DjRsJKa047BrNUHBPMm5Bip7ib_E` �
 
 **直接引用は 15 語以内に厳守。** それ以外は自分の言葉で要約する。
 
-### STEP 7: Notion ページ作成
+### STEP 7: IR システムへ月報を投稿（Notion の代替）
 
-`notion-create-pages` で以下属性のページを作成:
+取り込みエンドポイントに月報を **HTTP POST** する。`sections` 配列に下記 9 セクションを順序どおり格納する。各 `body` は Markdown（`##` 見出し / `-` 箇条書き / `[label](url)` リンク / `**太字**` / `>` コールアウトに対応）。
 
-- parent `data_source_id`: `deb5f01e-7d35-8285-8ca2-075d87700da9`
-- Name: `{Month英語} {Year} VC - AZOO月報`（例: `April 2026 VC - AZOO月報`）
-- `date.Date.start`: 報告対象月の **翌月の第 2 木曜日**（`YYYY-MM-DD`）
-  - 例: 報告対象月 = 2026/4 → 翌月 = 2026/5 → 第 2 木曜日 = 2026/5/14
-- icon: 🦅
+リクエスト:
 
-ページ内容は以下セクション構成:
+```
+POST https://wasi-financial-dashboard.vercel.app/api/ingest/monthly-report
+Headers:
+  x-ingest-key: {{REPORT_INGEST_KEY}}
+  Content-Type: application/json
+Body (JSON):
+{
+  "report_month": "{YEAR}-{MM}",            // 報告対象月。例: 2026-04（MM はゼロ埋め）
+  "title": "{Month英語} {Year} VC - AZOO月報",  // 例: April 2026 VC - AZOO月報
+  "icon": "🦅",
+  "dashboard_url": "https://wasi-financial-dashboard.vercel.app/embed/vc-report?key=azoo-vc-2026&y={YEAR}&m={MONTH}&lang=ja&theme=light",
+  "status": "published",                     // 公開（一覧に表示・共有可）。下書きにするなら "draft"
+  "share": true,                              // 公開リンク(/r/:token)を発行
+  "sections": [
+    { "key": "01_summary",     "title": "01_サマリー",            "body": "..." },
+    { "key": "02_financial",   "title": "02_財務状況",            "body": "STEP2 の KPI（MRR/Committed ARR/施設数/ARPA/解約率）+ 財務ダッシュボード URL" },
+    { "key": "03_sales",       "title": "03_セールス活動",        "body": "STEP3 の集計" },
+    { "key": "04_hiring",      "title": "04_採用活動",            "body": "STEP4 の集計" },
+    { "key": "05_hoteltech",   "title": "05_Hotel Tech動向",      "body": "STEP6（各項目 1〜2 文 + ソース URL）" },
+    { "key": "06_product",     "title": "06_プロダクト",          "body": "STEP5：カテゴリ別 + 担当者別 + Sprint 別 + ハイライト" },
+    { "key": "07_issues",      "title": "07_課題と対策",          "body": "（手動記入プレースホルダ）" },
+    { "key": "08_next_actions","title": "08_次月アクション",      "body": "（手動記入プレースホルダ）" },
+    { "key": "09_discussion",  "title": "09_ディスカッションポイント", "body": "（手動記入プレースホルダ）" }
+  ],
+  "kpi_snapshot": { "mrr": 0, "committed_arr": 0, "facilities": 0, "arpa": 0, "churn_rate": 0 }  // 任意。STEP2 の数値を機械可読で
+}
+```
 
-- `01_サマリー`
-- `02_財務状況`（STEP 2 の KPI + 財務ダッシュボード URL）
-- `03_セールス活動`（STEP 3 の集計）
-- `04_採用活動`（STEP 4 の集計）
-- `05_Hotel Tech動向`（STEP 6）
-- `06_プロダクト`（STEP 5：カテゴリ別 + 担当者別 + Sprint 別 + ハイライト）
-- `07_課題と対策`（手動記入プレースホルダ）
-- `08_次月アクション`（手動記入プレースホルダ）
-- `09_ディスカッションポイント`（手動記入プレースホルダ）
-
-Notion ブロックは見出し（heading_2）/ 箇条書き（bulleted_list_item）/ 段落（paragraph）/ コールアウト（callout）を適切に組み合わせる。
+- 同じ `report_month` の VC月報が既にあれば **更新（冪等）**、なければ新規作成される。
+- レスポンスの `public_url`（`/r/:token`）と `app_url`（`/monthly`）を STEP 8 で使う。
+- タイトル・アイコンは Notion 時代と同一（`April 2026 VC - AZOO月報` / 🦅）。
+- 「翌月第2木曜日」の日付は月報本体には不要（システムは `report_month` で月管理）。VC月例会の開催日は IR システムの「月例会・議事録」機能側で別途管理する。
 
 ### STEP 8: Slack 通知
 
-Notion ページ作成完了後、`slack_send_message` でチャンネル `C06U8SWQT0Q` にサマリと Notion ページ URL を投稿:
+月報投稿完了後、`slack_send_message` でチャンネル `C06U8SWQT0Q` にサマリと **システムの月報 URL（`public_url` / `app_url`）** を投稿:
 
 - Financial Analysis（MRR / ARR / 施設数）
 - Sales Pipeline（新規商談 / 成約 / パイプライン MRR）
@@ -162,16 +184,17 @@ Notion ページ作成完了後、`slack_send_message` でチャンネル `C06U8
 - **Product（完了タスク総数 + カテゴリ別件数 🚀{N1} / 🛠{N2} / 🐞{N3} / 🔬{N4} / 🔎{N5} + 主要リリース 1〜3 件）**
 - Hotel Tech（トップ 1〜2 トピック）
 - 手動記入項目リスト（07/08/09 セクション）
-- Notion ページ URL
+- 月報 URL（システムの `public_url` = 公開リンク。社内確認用に `app_url` = `/monthly` も併記）
 
 ### 注意事項
 
 - 金額は `¥` 付きカンマ区切り（例: `¥1,234,567`）
 - Supabase の SQL 日付フィルタは **JST ベースで計算（+9 時間オフセット考慮）**
 - ClickUp タスク取得はページ 0 から順に取得し、最終ページまで必ず辿る
-- API エラーはスキップせず Slack に通知（どの STEP で失敗したかを明記）
+- API エラーはスキップせず Slack に通知（どの STEP で失敗したかを明記）。STEP7 の POST が失敗した場合は HTTP ステータスとレスポンス本文も添える
 - Firecrawl 検索結果は要約のみ（直接引用は 15 語以内）
-- Sprint 番号・List ID・Notion ページ ID・Slack チャンネル名はハードコードしない（**ID は前提情報セクションの定数のみ可**）
+- Sprint 番号・List ID・Slack チャンネル名はハードコードしない（**ID は前提情報セクションの定数のみ可**）
+- `REPORT_INGEST_KEY` は秘匿情報。Routine のシークレット設定に保持し、プロンプト本文やリポジトリにコミットしない
 - 旧アーカイブ Sprint フォルダ（Sprints 1-84 / Sprints 90+）のタスクが混入しないこと
 
 ---
@@ -186,7 +209,8 @@ Notion ページ作成完了後、`slack_send_message` でチャンネル `C06U8
 - [ ] STEP 5: 同タスクが重複カウントされていない（id で dedupe）
 - [ ] STEP 5: カテゴリ分類が優先順位どおりに 1 カテゴリ割当になっている
 - [ ] STEP 6: Firecrawl 結果の直接引用が 15 語以内
-- [ ] STEP 7: Notion ページタイトル / アイコン / 日付（翌月第 2 木曜日）が正しい
-- [ ] STEP 7: 9 セクションすべて存在し、06_プロダクトに STEP 5 の内容が反映されている
-- [ ] STEP 8: Slack 投稿に Product カテゴリ別件数と Notion URL が含まれている
-- [ ] エラー時に Slack へ STEP 名付きで通知される
+- [ ] STEP 7: POST が 200/201 で成功し、`report_month` / タイトル / アイコン（🦅）が正しい
+- [ ] STEP 7: 9 セクションすべて `sections` に存在し、06_プロダクトに STEP 5 の内容が反映されている
+- [ ] STEP 7: レスポンスの `public_url`（/r/:token）が返り、ブラウザで月報が閲覧できる
+- [ ] STEP 8: Slack 投稿に Product カテゴリ別件数と 月報 URL（public_url）が含まれている
+- [ ] エラー時に Slack へ STEP 名付きで通知される（STEP7 失敗時は HTTP ステータスも）
