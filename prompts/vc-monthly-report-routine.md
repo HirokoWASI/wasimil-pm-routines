@@ -22,7 +22,7 @@ ClickUp プロダクト集計部分（STEP 5）は、`prompts/product-monthly-up
 - IR システム 月報取り込みエンドポイント: `POST https://wasi-financial-dashboard.vercel.app/api/ingest/monthly-report`
   - 認証ヘッダー: `x-ingest-key: {{REPORT_INGEST_KEY}}`（実際のキーは Routine のシークレット設定に保持。リポジトリにコミットしないこと）
   - `Content-Type: application/json`
-- 財務ダッシュボード URL: `https://wasi-financial-dashboard.vercel.app/embed/vc-report?key=azoo-vc-2026&y={YEAR}&m={MONTH}&lang=ja&theme=light`
+- 財務ダッシュボード URL: `https://wasi-financial-dashboard.vercel.app/embed/vc-report?y={YEAR}&m={MONTH}&lang=ja&theme=light`
 - Slack 通知先: `washimo.slack.com` チャンネル ID `C06U8SWQT0Q`
 - Sales Pipeline Supabase Project ID: `bnqejljedwkmlkykdhcr`
 - ATS Supabase Project ID: `jrzrdcxbuypumgukvlok`
@@ -151,7 +151,7 @@ Body (JSON):
   "report_month": "{YEAR}-{MM}",            // 報告対象月。例: 2026-04（MM はゼロ埋め）
   "title": "{Month英語} {Year} VC - AZOO月報",  // 例: April 2026 VC - AZOO月報
   "icon": "🦅",
-  "dashboard_url": "https://wasi-financial-dashboard.vercel.app/embed/vc-report?key=azoo-vc-2026&y={YEAR}&m={MONTH}&lang=ja&theme=light",
+  "dashboard_url": "https://wasi-financial-dashboard.vercel.app/embed/vc-report?y={YEAR}&m={MONTH}&lang=ja&theme=light",
   "status": "published",                     // 公開（一覧に表示・共有可）。下書きにするなら "draft"
   "share": true,                              // 公開リンク(/r/:token)を発行
   "sections": [
@@ -214,3 +214,6 @@ Body (JSON):
 - [ ] STEP 7: レスポンスの `public_url`（/r/:token）が返り、ブラウザで月報が閲覧できる
 - [ ] STEP 8: Slack 投稿に Product カテゴリ別件数と 月報 URL（public_url）が含まれている
 - [ ] エラー時に Slack へ STEP 名付きで通知される（STEP7 失敗時は HTTP ステータスも）
+
+
+Security: Financial dashboard embed URLs require an authenticated, authorized staff session. Do not add shared access keys to URLs or public prompts. Report automation must use its authorized ingestion integration; dashboard links are for signed-in staff.
